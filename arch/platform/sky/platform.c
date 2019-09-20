@@ -120,8 +120,10 @@ platform_init_stage_one(void)
    */
   msp430_cpu_init();
 
+#ifndef WITHOUT_LEDS
   leds_init();
   leds_on(LEDS_RED);
+#endif
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -129,7 +131,9 @@ platform_init_stage_two(void)
 {
   uart1_init(BAUD2UBR(115200)); /* Must come before first printf */
 
+#ifndef WITHOUT_LEDS
   leds_on(LEDS_GREEN);
+#endif
   ds2411_init();
 
   /* XXX hack: Fix it so that the 802.15.4 MAC address is compatible
@@ -137,17 +141,23 @@ platform_init_stage_two(void)
      cannot be odd. */
   ds2411_id[2] &= 0xfe;
 
+#ifndef WITHOUT_LEDS
   leds_on(LEDS_BLUE);
+#endif
   xmem_init();
 
+#ifndef WITHOUT_LEDS
   leds_off(LEDS_RED);
+#endif
   /*
    * Hardware initialization done!
    */
 
   random_init(ds2411_id[0]);
 
+#ifndef WITHOUT_LEDS
   leds_off(LEDS_BLUE);
+#endif
 
   set_lladdr();
 
@@ -181,7 +191,9 @@ platform_init_stage_three(void)
   serial_line_init();
 #endif
 
+#ifndef WITHOUT_LEDS
   leds_off(LEDS_GREEN);
+#endif
 
 #if TIMESYNCH_CONF_ENABLED
   timesynch_init();
