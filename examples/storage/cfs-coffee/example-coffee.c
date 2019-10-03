@@ -162,7 +162,10 @@ PROCESS_THREAD(example_coffee_process, ev, data)
   PROCESS_BEGIN();
 
 #if NEED_FORMATTING
+  printf("Need formatting\n");
   cfs_coffee_format();
+#else
+  printf("don't need formatting\n");
 #endif
 
   /* Ensure that we will be working with a new file. */
