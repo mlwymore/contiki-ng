@@ -41,7 +41,8 @@
 #include "contiki.h"
 #include "net/netstack.h"
 #include "net/nullnet/nullnet.h"
-#include "dev/leds.h"
+#include "arch/cpu/cc26x0-cc13x0/lib/cc26xxware/driverlib/gpio.h"
+// #include "cc26"
 #include <string.h>
 #include <stdio.h> /* For printf() */
 
@@ -51,7 +52,8 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Configuration */
-#define SEND_INTERVAL (CLOCK_SECOND)
+#define SEND_INTERVAL (0.5 * CLOCK_SECOND)
+// #define PIN_HIGH_INTERVAL (1 * CLOCK_SECOND)
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -60,20 +62,28 @@ static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0
 
 /*---------------------------------------------------------------------------*/
 PROCESS(nullnet_example_process, "NullNet broadcast example");
+// PROCESS(send_reset, "Send reset signal to harvester");
 AUTOSTART_PROCESSES(&nullnet_example_process);
+// AUTOSTART_PROCESSES(&nullnet_example_process, &send_reset);
+
+// AUTOSTART_PROCESSES(&send_reset);
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
-  if(len == sizeof(unsigned)) {
-    unsigned count;
-    memcpy(&count, data, sizeof(count));
-    LOG_INFO("Received %u from ", count);
-    LOG_INFO_LLADDR(src);
-    LOG_INFO_("\n");
-    leds_single_on(LEDS_LED1);
-  }
+  //if(len == sizeof(unsigned)) {
+    // unsigned count;
+    // memcpy(&count, data, sizeof(count));
+    // LOG_INFO("Received %u from ", count);
+    // LOG_INFO_LLADDR(src);
+    // LOG_INFO_("\n");
+    // LED PIN 10 and GPIO PIN (DP0) is 25
+    // GPIO_setOutputEnableDio(10, GPIO_OUTPUT_ENABLE);
+    GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
+    // GPIO_setDio(10);
+    GPIO_setDio(25);
+  //}
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(nullnet_example_process, ev, data)
@@ -90,13 +100,14 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   /* Initialize NullNet */
   nullnet_buf = (uint8_t *)&count;
   nullnet_len = sizeof(count);
+
   nullnet_set_input_callback(input_callback);
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
-  while(1) {
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    leds_off(LEDS_ALL);
-    LOG_INFO("I'm alive!\n");
+
+  while(1) {    
+    // LOG_INFO_("\n");
+    // LOG_INFO("I'm alive!\n");
     /*LOG_INFO("Sending %u to ", count);
     LOG_INFO_LLADDR(NULL);
     LOG_INFO_("\n");
@@ -107,8 +118,10 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     NETSTACK_NETWORK.output(NULL);
     count++;*/
     etimer_reset(&periodic_timer);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
   }
-
+  // Function to turn radio off
+  // NETSTACK_MAC.off();
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

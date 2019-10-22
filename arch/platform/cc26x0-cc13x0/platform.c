@@ -90,24 +90,26 @@ void board_init(void);
 #define BOARD_HAS_SENSORS 1
 #endif
 /*---------------------------------------------------------------------------*/
-static void
-fade(leds_mask_t l)
-{
-  volatile int i;
-  int k, j;
-  for(k = 0; k < 800; ++k) {
-    j = k > 400 ? 800 - k : k;
+#ifndef WITHOUT_LEDS
+  static void
+  fade(leds_mask_t l)
+  {
+    volatile int i;
+    int k, j;
+    for(k = 0; k < 800; ++k) {
+      j = k > 400 ? 800 - k : k;
 
-    leds_on(l);
-    for(i = 0; i < j; ++i) {
-      __asm("nop");
-    }
-    leds_off(l);
-    for(i = 0; i < 400 - j; ++i) {
-      __asm("nop");
+      leds_on(l);
+      for(i = 0; i < j; ++i) {
+        __asm("nop");
+      }
+      leds_off(l);
+      for(i = 0; i < 400 - j; ++i) {
+        __asm("nop");
+      }
     }
   }
-}
+#endif
 /*---------------------------------------------------------------------------*/
 static void
 set_rf_params(void)
@@ -149,8 +151,10 @@ platform_init_stage_one()
 
   gpio_hal_init();
 
-  leds_init();
-  fade(LEDS_RED);
+  #ifndef WITHOUT_LEDS
+    leds_init();
+    fade(LEDS_RED);
+  #endif
 
   /*
    * Disable I/O pad sleep mode and open I/O latches in the AON IOC interface
@@ -166,7 +170,10 @@ platform_init_stage_one()
   ti_lib_int_master_enable();
 
   soc_rtc_init();
-  fade(LEDS_YELLOW);
+
+  #ifndef WITHOUT_LEDS
+    fade(LEDS_YELLOW);
+  #endif
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -196,7 +203,9 @@ platform_init_stage_two()
 
   button_hal_init();
 
-  fade(LEDS_GREEN);
+  #ifndef WITHOUT_LEDS
+    fade(LEDS_GREEN);
+  #endif
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -227,8 +236,9 @@ platform_init_stage_three()
 #if BOARD_HAS_SENSORS
   process_start(&sensors_process, NULL);
 #endif
-
+#ifndef WITHOUT_LEDS
   fade(LEDS_ORANGE);
+#endif
 }
 /*---------------------------------------------------------------------------*/
 void
