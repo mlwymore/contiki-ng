@@ -44,13 +44,14 @@
 #include <string.h>
 #include <stdio.h> /* For printf() */
 
+#include "dev/xmem.h"
+
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-/* Configuration */
-#define SEND_INTERVAL (8 * CLOCK_SECOND)
+#define SEND_INTERVAL (CLOCK_SECOND)
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -78,6 +79,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
 {
   static struct etimer periodic_timer;
   static unsigned count = 0;
+  char buf[20];
 
   PROCESS_BEGIN();
 
@@ -90,18 +92,27 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   nullnet_len = sizeof(count);
   nullnet_set_input_callback(input_callback);
 
+
+  xmem_pread(buf, 1, 0);
+  LOG_INFO("Read character from flash: %c\n", buf[0]);
+  LOG_INFO("Writing to flash\n");
+  xmem_erase(1, 0);
+  xmem_pwrite("*", 1, 0);
+
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    LOG_INFO("Sending %u to ", count);
-    LOG_INFO_LLADDR(NULL);
-    LOG_INFO_("\n");
+    //LOG_INFO("Sending %u to ", count);
+    //LOG_INFO_LLADDR(NULL);
+    //LOG_INFO_("\n");
     
-    memcpy(nullnet_buf, &count, sizeof(count));
-    nullnet_len = sizeof(count);
+    //memcpy(nullnet_buf, &count, sizeof(count));
+    //nullnet_len = sizeof(count);
 
-    NETSTACK_NETWORK.output(NULL);
+    //NETSTACK_NETWORK.output(NULL);
     count++;
+    LOG_INFO("Writing to flash\n");
+    xmem_pwrite("*", 1, 0);
     etimer_reset(&periodic_timer);
   }
 
