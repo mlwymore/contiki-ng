@@ -49,7 +49,7 @@
 
 #define XMEM_BUFF_LENGHT        128
 
-#if 0
+#if 1
 #define PRINTF(...) printf(__VA_ARGS__)
 #else
 #define PRINTF(...) do {} while(0)

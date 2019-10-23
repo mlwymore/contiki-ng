@@ -1,4 +1,5 @@
 CONTIKI_PROJECT = broadcast-sender broadcast-receiver broadcast-both receiver-gpio
+CONTIKI_PROJECT = broadcast-sender broadcast-receiver broadcast-both receive-counter-flash
 all: $(CONTIKI_PROJECT)
 
 CONTIKI = ../..
