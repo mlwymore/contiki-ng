@@ -40,8 +40,9 @@
 #ifndef CFS_COFFEE_ARCH_H
 #define CFS_COFFEE_ARCH_H
 
-#include "contiki-conf.h"
 #include "dev/xmem.h"
+#include "contiki-conf.h"
+
 
 /*
  * MX25R8035F Memory Organization

@@ -61,7 +61,7 @@
  * "Could not open flash to load config"
  * when your sensortag is starting up.
  */
-#define SENSORTAG_CC2650_REV_1_2_0            0
+#define SENSORTAG_CC2650_REV_1_2_0            1
 /*---------------------------------------------------------------------------*/
 /* Enable the ROM bootloader */
 #define CCXXWARE_CONF_ROM_BOOTLOADER_ENABLE   1
