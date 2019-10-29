@@ -53,6 +53,7 @@ PROCESS_THREAD(flash_process, ev, data)
         LOG_INFO_("File read not correct, read: %d and expected: %d\n", rbuf, i);
       } else {
         LOG_INFO_("Read successful\n");
+        LOG_INFO_("rbuf = %d", rbuf);
       }
      
       i++;
