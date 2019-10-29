@@ -50,11 +50,7 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Configuration */
-<<<<<<< HEAD
-#define SEND_INTERVAL (0.01 * CLOCK_SECOND)
-=======
-#define SEND_INTERVAL (CLOCK_SECOND)
->>>>>>> 3ee7d797c82431018faf073eea16a4ae43e609fe
+#define SEND_INTERVAL (1 * CLOCK_SECOND)
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -95,6 +91,8 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   //nullnet_set_input_callback(input_callback);
   NETSTACK_MAC.off();
 
+  etimer_set(&periodic_timer, SEND_INTERVAL);
+
   while(1) {
     LOG_INFO("Sending %u to ", count);
     LOG_INFO_LLADDR(NULL);
@@ -105,11 +103,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
 
     NETSTACK_NETWORK.output(NULL);
     count++;
-<<<<<<< HEAD
     etimer_reset(&periodic_timer);
-=======
-    etimer_set(&periodic_timer, SEND_INTERVAL);
->>>>>>> 3ee7d797c82431018faf073eea16a4ae43e609fe
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
   }
 
