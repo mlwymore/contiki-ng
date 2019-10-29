@@ -1,0 +1,165 @@
+#include "contiki.h"
+#include "net/netstack.h"
+#include "net/nullnet/nullnet.h"
+#include "arch/cpu/cc26x0-cc13x0/lib/cc26xxware/driverlib/gpio.h"
+#include "os/storage/cfs/cfs-coffee.h"
+#include "dev/button-hal.h"
+
+// #include "cc26"
+#include <string.h>
+#include <stdio.h> /* For printf() */
+
+/* Log configuration */
+#include "sys/log.h"
+#define LOG_MODULE "App"
+#define LOG_LEVEL LOG_LEVEL_INFO
+
+/* Configuration */
+#define WAIT_INTERVAL (0.005 * CLOCK_SECOND)
+#define SEND_INTERVAL (1 * CLOCK_SECOND)
+
+#if MAC_CONF_WITH_TSCH
+#include "net/mac/tsch/tsch.h"
+static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+#endif /* MAC_CONF_WITH_TSCH */
+
+/*---------------------------------------------------------------------------*/
+PROCESS(nullnet_process, "NullNet receiver");
+PROCESS(flashwrite_process, "Flash write");
+PROCESS(flashread_process, "Flash Read");
+AUTOSTART_PROCESSES(&nullnet_process, &flashwrite_process, &flashread_process);
+
+/*---------------------------------------------------------------------------*/
+void input_callback(const void *data, uint16_t len,
+  const linkaddr_t *src, const linkaddr_t *dest)
+{
+  if(len == sizeof(unsigned)) {
+    unsigned count;
+    unsigned long current_time;
+
+    memcpy(&count, data, sizeof(count));
+    current_time = clock_seconds();
+    LOG_INFO_("Time: %lu ", current_time);
+    LOG_INFO("Received %u from ", count);
+    LOG_INFO_LLADDR(src);
+    LOG_INFO_("\n");
+    // set GPIO Pin 25 or DP0 as output pin
+    GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
+    // toggle
+    GPIO_setDio(25);
+
+    // Generate an messeage receive event
+    process_post(&flashwrite_process, PROCESS_EVENT_MSG, &count);
+  }
+}
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(nullnet_process, ev, data)
+{  
+  static unsigned count = 0;
+  static struct etimer periodic_timer;
+  etimer_set(&periodic_timer, SEND_INTERVAL);
+
+  void clock_init(void);
+
+  PROCESS_BEGIN();
+
+  #if MAC_CONF_WITH_TSCH
+  tsch_set_coordinator(linkaddr_cmp(&coordinator_addr, &linkaddr_node_addr));
+  #endif /* MAC_CONF_WITH_TSCH */
+
+  /* Initialize NullNet */
+  nullnet_buf = (uint8_t *)&count;
+  nullnet_len = sizeof(count);
+
+  nullnet_set_input_callback(input_callback);  
+
+  while(1) {       
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+      LOG_INFO_("I'm Alive");
+      LOG_INFO_("\n");
+      etimer_reset(&periodic_timer);
+  }
+  PROCESS_END();
+  }
+  /*---------------------------------------------------------------------------*/
+  PROCESS_THREAD(flashwrite_process, ev, data)
+  {
+    PROCESS_BEGIN();
+
+    int flash_fd = 1, len = 1;
+    int write_status = 0;
+
+    // Open flash to write with read and write flags
+    flash_fd = cfs_open("flash.txt", CFS_WRITE|CFS_READ);    
+    LOG_INFO_("File descriptor : %d\n", flash_fd);
+    // If the file can't be opened fd = -1
+    if (flash_fd == -1) {
+        LOG_INFO_("File open failed!\n");
+        while(1);
+    }    
+
+    while(1) {
+        if(ev == PROCESS_EVENT_MSG) {
+          // Write received count to flash
+          write_status = cfs_write(flash_fd, (void*)data, len);
+          if (write_status != len) {
+              LOG_INFO_("File write failed!\n");
+          } else {
+              LOG_INFO_("Flash written successfull\n");
+          }
+        }
+    }
+    // Close file
+    cfs_close(flash_fd);
+
+    PROCESS_END();    
+}
+/*---------------------------------------------------------------------------*/
+void flash_read(int fd) 
+{
+  int i = 0, bytes_read = 0, len = 1;
+  char rbuf;
+
+  // To read seek to position 
+  cfs_seek(fd, i, CFS_SEEK_SET);
+  bytes_read = cfs_read(fd, &rbuf, len);
+  LOG_INFO_("rbuf = %d, size = %d bytes\n", rbuf, bytes_read);       
+  i++;
+}
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(flashread_process, ev, data)
+{
+  button_hal_button_t *btn;
+
+  PROCESS_BEGIN();
+
+  int flash_fd = 1;
+  // int i = 0;
+  // char rbuf;
+
+  // Open flash to write with read and write flags
+  flash_fd = cfs_open("flash.txt", CFS_WRITE|CFS_READ);    
+  LOG_INFO_("File descriptor : %d\n", flash_fd);
+  // If the file can't be opened fd = -1
+  if (flash_fd == -1) {
+      LOG_INFO_("File open failed!\n");
+      while(1);
+  }  
+
+  // PROCESS_YIELD();
+
+  if(ev == button_hal_press_event) {
+    btn = (button_hal_button_t *)data;
+
+    if(btn == button_hal_get_by_id(BUTTON_HAL_ID_BUTTON_ZERO)) {
+      flash_read(flash_fd);
+    }
+  }    
+  
+  // Close file
+  cfs_close(flash_fd);
+
+  PROCESS_END();    
+}
+/*---------------------------------------------------------------------------*/
+
