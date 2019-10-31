@@ -187,7 +187,6 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
     LOG_ERR("failed to create packet, seqno: %d\n", packetbuf_attr(PACKETBUF_ATTR_MAC_SEQNO));
     ret = MAC_TX_ERR_FATAL;
   } else {
-  	printf("datalen before send %d\n", packetbuf_datalen());
     ret = contikimac_ddc_send_packet();
   }
   if(ret == MAC_TX_OK) {

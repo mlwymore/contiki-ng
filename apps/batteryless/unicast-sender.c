@@ -30,19 +30,11 @@
  *
  */
 
-/**
- * \file
- *         NullNet broadcast example
- * \author
-*         Simon Duquennoy <simon.duquennoy@ri.se>
- *
- */
-
 #include "contiki.h"
 #include "net/netstack.h"
 #include "net/nullnet/nullnet.h"
-#include "arch/cpu/cc26x0-cc13x0/lib/cc26xxware/driverlib/gpio.h"
-// #include "cc26"
+#include "net/mac/mac.h"
+#include "net/packetbuf.h"
 #include <string.h>
 #include <stdio.h> /* For printf() */
 
@@ -52,8 +44,8 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Configuration */
-#define SEND_INTERVAL (CLOCK_SECOND)
-// #define PIN_HIGH_INTERVAL (1 * CLOCK_SECOND)
+#define SEND_INTERVAL (1 * CLOCK_SECOND)
+static linkaddr_t dest_addr =         {{ 0x00, 0x12, 0x4b, 0x00, 0x0c, 0x4a, 0x43, 0x86 }}; //Sensortag 16
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -66,36 +58,38 @@ struct data_packet {
 };
 
 /*---------------------------------------------------------------------------*/
-PROCESS(nullnet_example_process, "NullNet broadcast example");
-// PROCESS(send_reset, "Send reset signal to harvester");
+PROCESS(nullnet_example_process, "NullNet unicast example");
 AUTOSTART_PROCESSES(&nullnet_example_process);
-// AUTOSTART_PROCESSES(&nullnet_example_process, &send_reset);
-
-// AUTOSTART_PROCESSES(&send_reset);
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
-  printf("Receive callback\n");
   if(len == sizeof(struct data_packet)) {
-     unsigned count;
-     memcpy(&count, data, sizeof(count));
-     LOG_INFO("Received %u from ", count);
-     LOG_INFO_LLADDR(src);
-     LOG_INFO_("\n");
-    // LED PIN 10 and GPIO PIN (DP0) is 25
-    // GPIO_setOutputEnableDio(10, GPIO_OUTPUT_ENABLE);
-    //GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
-    // GPIO_setDio(10);
-    //GPIO_setDio(25);
+    unsigned count;
+    memcpy(&count, data, sizeof(count));
+    LOG_INFO("Received %u from ", count);
+    LOG_INFO_LLADDR(src);
+    LOG_INFO_("\n");
   }
+}
+/*---------------------------------------------------------------------------*/
+void mac_sent_callback(void * ptr, int status, int transmissions) {
+  if(status == MAC_TX_OK) {
+    LOG_INFO("Sent successfully.\n");
+  } else if(status == MAC_TX_NOACK) {
+    LOG_INFO("No ACK!\n");
+  } else {
+    LOG_INFO("Send failed.\n");
+  }
+  process_post(&nullnet_example_process, PROCESS_EVENT_CONTINUE, NULL);
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(nullnet_example_process, ev, data)
 {
-  static struct etimer periodic_timer;
-  static unsigned count = 0;
+  //static struct etimer periodic_timer;
+  static struct data_packet pkt;
+  static int count = 0;
 
   PROCESS_BEGIN();
 
@@ -104,28 +98,36 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
 #endif /* MAC_CONF_WITH_TSCH */
 
   /* Initialize NullNet */
-  nullnet_buf = (uint8_t *)&count;
-  nullnet_len = sizeof(count);
+  //nullnet_buf = (uint8_t *)&pkt;
+  //nullnet_len = sizeof(struct data_packet);
+  //nullnet_set_input_callback(input_callback);
 
-  nullnet_set_input_callback(input_callback);
+  //etimer_set(&periodic_timer, SEND_INTERVAL);
 
-  while(1) {    
-    // LOG_INFO_("\n");
-    LOG_INFO("I'm alive!\n");
-    /*LOG_INFO("Sending %u to ", count);
-    LOG_INFO_LLADDR(NULL);
+  while(1) {
+    LOG_INFO("Sending %u to ", pkt.seqno);
+    LOG_INFO_LLADDR(&dest_addr);
     LOG_INFO_("\n");
     
-    memcpy(nullnet_buf, &count, sizeof(count));
-    nullnet_len = sizeof(count);
+    pkt.seqno = count;
+    /*memcpy(nullnet_buf, &pkt, sizeof(struct data_packet));
+    nullnet_len = sizeof(struct data_packet);
 
-    NETSTACK_NETWORK.output(NULL);
-    count++;*/
-    etimer_set(&periodic_timer, SEND_INTERVAL);
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    NETSTACK_NETWORK.output(&dest_addr);*/
+    
+    packetbuf_clear();
+    packetbuf_copyfrom(&pkt, sizeof(struct data_packet));
+    packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, &dest_addr);
+    packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &linkaddr_node_addr);
+    NETSTACK_MAC.send(mac_sent_callback, NULL);
+
+    count++;
+    //etimer_set(&periodic_timer, SEND_INTERVAL);
+    //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+    PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
+
   }
-  // Function to turn radio off
-  // NETSTACK_MAC.off();
+
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
