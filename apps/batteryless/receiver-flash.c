@@ -15,8 +15,10 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Configuration */
-#define WAIT_INTERVAL (0.005 * CLOCK_SECOND)
 #define SEND_INTERVAL (1 * CLOCK_SECOND)
+
+/* Variables: the application specific event value */
+static process_event_t PACKET_RECEIVED;
 
 #if MAC_CONF_WITH_TSCH
 #include "net/mac/tsch/tsch.h"
@@ -27,14 +29,15 @@ static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0
 PROCESS(nullnet_process, "NullNet receiver");
 PROCESS(flashwrite_process, "Flash write");
 PROCESS(flashread_process, "Flash Read");
-AUTOSTART_PROCESSES(&nullnet_process, &flashwrite_process, &flashread_process);
+PROCESS(flashclear_process, "Flash Remove file");
+AUTOSTART_PROCESSES(&nullnet_process, &flashwrite_process, &flashread_process, &flashclear_process);
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
   if(len == sizeof(unsigned)) {
-    unsigned count;
+    static unsigned count;
     unsigned long current_time;
 
     memcpy(&count, data, sizeof(count));
@@ -49,7 +52,7 @@ void input_callback(const void *data, uint16_t len,
     GPIO_setDio(25);
 
     // Generate an messeage receive event
-    process_post(&flashwrite_process, PROCESS_EVENT_MSG, &count);
+    process_post(&flashwrite_process, PACKET_RECEIVED, &count);
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -62,6 +65,9 @@ PROCESS_THREAD(nullnet_process, ev, data)
   void clock_init(void);
 
   PROCESS_BEGIN();
+
+  /* allocate the required event */
+  PACKET_RECEIVED = process_alloc_event();
 
   #if MAC_CONF_WITH_TSCH
   tsch_set_coordinator(linkaddr_cmp(&coordinator_addr, &linkaddr_node_addr));
@@ -82,12 +88,25 @@ PROCESS_THREAD(nullnet_process, ev, data)
   PROCESS_END();
   }
   /*---------------------------------------------------------------------------*/
+  void flash_write(int fd, int * data) 
+  {
+    int write_status = 0, len = 1;
+
+    // Write received count to flash
+    write_status = cfs_write(fd, (void*)data, len);
+    if (write_status != len) {
+        LOG_INFO_("File write failed!\n");
+    } else {
+        LOG_INFO_("Flash written successfully\n");
+        // LOG_INFO_("wbuf = %d\n", *data);
+    }
+  }
+  /*---------------------------------------------------------------------------*/
   PROCESS_THREAD(flashwrite_process, ev, data)
   {
     PROCESS_BEGIN();
 
-    int flash_fd = 1, len = 1;
-    int write_status = 0;
+    static int flash_fd = 1;
 
     // Open flash to write with read and write flags
     flash_fd = cfs_open("flash.txt", CFS_WRITE|CFS_READ);    
@@ -96,19 +115,16 @@ PROCESS_THREAD(nullnet_process, ev, data)
     if (flash_fd == -1) {
         LOG_INFO_("File open failed!\n");
         while(1);
-    }    
+    }   
 
     while(1) {
-        if(ev == PROCESS_EVENT_MSG) {
-          // Write received count to flash
-          write_status = cfs_write(flash_fd, (void*)data, len);
-          if (write_status != len) {
-              LOG_INFO_("File write failed!\n");
-          } else {
-              LOG_INFO_("Flash written successfull\n");
-          }
-        }
+      PROCESS_YIELD();
+      if (ev == PACKET_RECEIVED) {
+        // Write to flash
+        flash_write(flash_fd, data);
+      }
     }
+
     // Close file
     cfs_close(flash_fd);
 
@@ -117,14 +133,19 @@ PROCESS_THREAD(nullnet_process, ev, data)
 /*---------------------------------------------------------------------------*/
 void flash_read(int fd) 
 {
-  int i = 0, bytes_read = 0, len = 1;
-  char rbuf;
+  int i = 0, bytes_read = 0, len = 1, eof = 0;
+  static char rbuf;
 
-  // To read seek to position 
-  cfs_seek(fd, i, CFS_SEEK_SET);
-  bytes_read = cfs_read(fd, &rbuf, len);
-  LOG_INFO_("rbuf = %d, size = %d bytes\n", rbuf, bytes_read);       
-  i++;
+  eof = cfs_seek(fd, 0, CFS_SEEK_END);
+  LOG_INFO_("EOF = %d\n", eof);
+
+  while(i < eof) {
+    // To read seek to position 
+    cfs_seek(fd, i, CFS_SEEK_SET);
+    bytes_read = cfs_read(fd, &rbuf, len);
+    LOG_INFO_("rbuf = %d, size = %d bytes for i = %d\n", rbuf, bytes_read, i);       
+    i++;
+  }
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(flashread_process, ev, data)
@@ -133,9 +154,8 @@ PROCESS_THREAD(flashread_process, ev, data)
 
   PROCESS_BEGIN();
 
-  int flash_fd = 1;
-  // int i = 0;
-  // char rbuf;
+  btn = button_hal_get_by_index(0);
+  static int flash_fd = 1;
 
   // Open flash to write with read and write flags
   flash_fd = cfs_open("flash.txt", CFS_WRITE|CFS_READ);    
@@ -146,20 +166,50 @@ PROCESS_THREAD(flashread_process, ev, data)
       while(1);
   }  
 
-  // PROCESS_YIELD();
+  while(1) {
 
-  if(ev == button_hal_press_event) {
-    btn = (button_hal_button_t *)data;
+    PROCESS_YIELD();
 
-    if(btn == button_hal_get_by_id(BUTTON_HAL_ID_BUTTON_ZERO)) {
-      flash_read(flash_fd);
-    }
-  }    
-  
+    if(ev == button_hal_press_event) {
+      btn = (button_hal_button_t *)data;
+      LOG_INFO_("Press event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(btn));
+
+      if(btn == button_hal_get_by_id(BUTTON_HAL_ID_BUTTON_ZERO)) {
+        LOG_INFO_("This was button 0, on pin %u\n", btn->pin);
+        flash_read(flash_fd);
+      }
+    }    
+  }
+
   // Close file
   cfs_close(flash_fd);
 
   PROCESS_END();    
 }
 /*---------------------------------------------------------------------------*/
+PROCESS_THREAD(flashclear_process, ev, data)
+{
+  button_hal_button_t *btn;
 
+  PROCESS_BEGIN();
+
+  btn = button_hal_get_by_index(0);
+
+  while(1) {
+    PROCESS_YIELD();
+
+    if(ev == button_hal_press_event) {
+      btn = (button_hal_button_t *)data;
+      LOG_INFO_("Press event (%s)\n", BUTTON_HAL_GET_DESCRIPTION(btn));
+
+      if(btn == button_hal_get_by_id(BUTTON_HAL_ID_BUTTON_ONE)) {
+        LOG_INFO_("This was button 1, on pin %u\n", btn->pin);
+        cfs_remove("flash.txt");
+        LOG_INFO_("Flash File removed\n");
+      }
+    }    
+  }
+
+  PROCESS_END();    
+}
+/*---------------------------------------------------------------------------*/
