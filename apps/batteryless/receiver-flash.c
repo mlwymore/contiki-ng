@@ -98,7 +98,7 @@ PROCESS_THREAD(nullnet_process, ev, data)
         LOG_INFO_("File write failed!\n");
     } else {
         LOG_INFO_("Flash written successfully\n");
-        LOG_INFO_("wbuf = %d\n", *data);
+        // LOG_INFO_("wbuf = %d\n", *data);
     }
   }
   /*---------------------------------------------------------------------------*/
@@ -107,8 +107,6 @@ PROCESS_THREAD(nullnet_process, ev, data)
     PROCESS_BEGIN();
 
     static int flash_fd = 1;
-    static unsigned *temp=0;
-    temp = (unsigned*)data;
 
     // Open flash to write with read and write flags
     flash_fd = cfs_open("flash.txt", CFS_WRITE|CFS_READ);    
@@ -119,20 +117,14 @@ PROCESS_THREAD(nullnet_process, ev, data)
         while(1);
     }   
 
-    // static const int wbuf = data;
-
-    // LOG_INFO_(data);
-    // LOG_INFO_("\n"); 
-
     while(1) {
       PROCESS_YIELD();
       if (ev == PACKET_RECEIVED) {
-       // LOG_INFO_("Incoming data = %u\n", ((int*)*data));
-       LOG_INFO_("Incoming data = %u\n", *temp);
-        LOG_INFO_("ev = %x\n", ev);
+        // Write to flash
         flash_write(flash_fd, data);
       }
     }
+
     // Close file
     cfs_close(flash_fd);
 
@@ -141,13 +133,17 @@ PROCESS_THREAD(nullnet_process, ev, data)
 /*---------------------------------------------------------------------------*/
 void flash_read(int fd) 
 {
-  int i = 0, bytes_read = 0, len = 1;
-  char rbuf;
-  while(1) {
+  int i = 0, bytes_read = 0, len = 1, eof = 0;
+  static char rbuf;
+
+  eof = cfs_seek(fd, 0, CFS_SEEK_END);
+  LOG_INFO_("EOF = %d\n", eof);
+
+  while(i < eof) {
     // To read seek to position 
     cfs_seek(fd, i, CFS_SEEK_SET);
     bytes_read = cfs_read(fd, &rbuf, len);
-    LOG_INFO_("rbuf = %d, size = %d bytes\n", rbuf, bytes_read);       
+    LOG_INFO_("rbuf = %d, size = %d bytes for i = %d\n", rbuf, bytes_read, i);       
     i++;
   }
 }
@@ -171,6 +167,7 @@ PROCESS_THREAD(flashread_process, ev, data)
   }  
 
   while(1) {
+
     PROCESS_YIELD();
 
     if(ev == button_hal_press_event) {
@@ -180,8 +177,8 @@ PROCESS_THREAD(flashread_process, ev, data)
       if(btn == button_hal_get_by_id(BUTTON_HAL_ID_BUTTON_ZERO)) {
         LOG_INFO_("This was button 0, on pin %u\n", btn->pin);
         flash_read(flash_fd);
-    }
-  }    
+      }
+    }    
   }
 
   // Close file
