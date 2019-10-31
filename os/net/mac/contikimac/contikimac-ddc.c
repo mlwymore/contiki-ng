@@ -613,11 +613,11 @@ send_packet(mac_callback_t mac_callback, void *mac_callback_ptr,
   }
 
   //if(!packetbuf_attr(PACKETBUF_ATTR_IS_CREATED_AND_SECURED)) {
-  packetbuf_set_attr(PACKETBUF_ATTR_MAC_ACK, 1);
+  /*packetbuf_set_attr(PACKETBUF_ATTR_MAC_ACK, 1);
   if(NETSTACK_FRAMER.create() < 0) {
     PRINTF("contikimac: framer failed\n");
     return MAC_TX_ERR_FATAL;
-  }
+  }*/
   //}
 
   transmit_len = packetbuf_totlen();
