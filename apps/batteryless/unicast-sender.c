@@ -37,6 +37,8 @@
 #include "net/packetbuf.h"
 #include <string.h>
 #include <stdio.h> /* For printf() */
+#include "arch/cpu/cc26x0-cc13x0/lib/cc26xxware/driverlib/gpio.h"
+
 
 /* Log configuration */
 #include "sys/log.h"
@@ -77,8 +79,12 @@ void input_callback(const void *data, uint16_t len,
 void mac_sent_callback(void * ptr, int status, int transmissions) {
   if(status == MAC_TX_OK) {
     LOG_INFO("Sent successfully.\n");
+    // set GPIO Pin 25 or DP0 as output pin
+    GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
+    GPIO_setDio(25);
   } else if(status == MAC_TX_NOACK) {
     LOG_INFO("No ACK!\n");
+    GPIO_clearDio(25);
   } else {
     LOG_INFO("Send failed.\n");
   }
