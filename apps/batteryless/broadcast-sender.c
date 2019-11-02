@@ -89,7 +89,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   nullnet_buf = (uint8_t *)&count;
   nullnet_len = sizeof(count);
   //nullnet_set_input_callback(input_callback);
-  NETSTACK_MAC.off();
+  // NETSTACK_MAC.off();
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
 
