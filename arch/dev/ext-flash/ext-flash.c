@@ -330,10 +330,12 @@ ext_flash_open(const spi_device_t *conf)
 
   /* Check if platform has ext-flash */
   if(flash_spi_configuration->pin_spi_sck == GPIO_HAL_PIN_UNKNOWN) {
+    printf("No flash found\n");
     return false;
   }
 
   if(spi_acquire(flash_spi_configuration) != SPI_DEV_STATUS_OK) {
+    printf("SPI acquire failed\n");
     return false;
   }
   /* Default output to clear chip select */
@@ -348,6 +350,7 @@ ext_flash_open(const spi_device_t *conf)
 
   /* Failed to verify */
   spi_release(flash_spi_configuration);
+  printf("Failed to verify\n");
   return false;
 }
 /*---------------------------------------------------------------------------*/
