@@ -15,7 +15,8 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Configuration */
-#define SEND_INTERVAL (1 * CLOCK_SECOND)
+#define WAIT_INTERVAL (0.005 * CLOCK_SECOND)
+#define SEND_INTERVAL (CLOCK_SECOND)
 
 /* Variables: the application specific event value */
 static process_event_t PACKET_RECEIVED;
@@ -25,18 +26,24 @@ static process_event_t PACKET_RECEIVED;
 static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
 #endif /* MAC_CONF_WITH_TSCH */
 
+struct data_packet {
+  unsigned seqno;
+  uint8_t dummy_data[30];
+};
+
 /*---------------------------------------------------------------------------*/
 PROCESS(nullnet_process, "NullNet receiver");
 PROCESS(flashwrite_process, "Flash write");
 PROCESS(flashread_process, "Flash Read");
 PROCESS(flashclear_process, "Flash Remove file");
-AUTOSTART_PROCESSES(&nullnet_process, &flashwrite_process, &flashread_process, &flashclear_process);
+PROCESS(gpio_process, "GPIO reset process");
+AUTOSTART_PROCESSES(&nullnet_process, &flashwrite_process, &flashread_process, &flashclear_process, &gpio_process);
 
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
-  if(len == sizeof(unsigned)) {
+  if(len == sizeof(struct data_packet)) {
     static unsigned count;
     unsigned long current_time;
 
@@ -53,6 +60,7 @@ void input_callback(const void *data, uint16_t len,
 
     // Generate an messeage receive event
     process_post(&flashwrite_process, PACKET_RECEIVED, &count);
+    process_post(&gpio_process, PROCESS_EVENT_MSG, &count);
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -60,7 +68,7 @@ PROCESS_THREAD(nullnet_process, ev, data)
 {  
   static unsigned count = 0;
   static struct etimer periodic_timer;
-  etimer_set(&periodic_timer, SEND_INTERVAL);
+  // etimer_set(&periodic_timer, SEND_INTERVAL);
 
   void clock_init(void);
 
@@ -79,13 +87,16 @@ PROCESS_THREAD(nullnet_process, ev, data)
 
   nullnet_set_input_callback(input_callback);  
 
+  LOG_INFO_LLADDR(&linkaddr_node_addr);
+
   while(1) {       
-      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-      LOG_INFO_("I'm Alive");
-      LOG_INFO_("\n");
-      etimer_reset(&periodic_timer);
+    LOG_INFO_("I'm Alive\n");
+    etimer_set(&periodic_timer, SEND_INTERVAL);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
   }
+
   PROCESS_END();
+
   }
   /*---------------------------------------------------------------------------*/
   void flash_write(int fd, int * data) 
@@ -98,7 +109,7 @@ PROCESS_THREAD(nullnet_process, ev, data)
         LOG_INFO_("File write failed!\n");
     } else {
         LOG_INFO_("Flash written successfully\n");
-        // LOG_INFO_("wbuf = %d\n", *data);
+        LOG_INFO_("wbuf = %d\n", *data);
     }
   }
   /*---------------------------------------------------------------------------*/
@@ -211,5 +222,28 @@ PROCESS_THREAD(flashclear_process, ev, data)
   }
 
   PROCESS_END();    
+}
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(gpio_process, ev, data)
+{
+    PROCESS_BEGIN();
+
+    static struct etimer wait_timer;
+    etimer_set(&wait_timer, WAIT_INTERVAL);
+
+    while (1)
+    {
+        // Wait for event from the nullnet receiver
+        PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_MSG);
+
+        etimer_reset(&wait_timer);
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
+        // set GPIO Pin 25 or DP0 as output pin
+        GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
+        // toggle
+        GPIO_clearDio(25);
+    }
+
+    PROCESS_END();    
 }
 /*---------------------------------------------------------------------------*/

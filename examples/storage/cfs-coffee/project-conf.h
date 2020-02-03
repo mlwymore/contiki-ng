@@ -35,6 +35,6 @@
 #define COFFEE_CONF_MICRO_LOGS        1
 #define COFFEE_CONF_APPEND_ONLY       0
 #endif /* CONTIKI_TARGET_CC2538DK || CONTIKI_TARGET_ZOUL */
-
+#define SENSORTAG_CC2650_REV_1_2_0 1
 #endif /* PROJECT_CONF_H_ */
 /*---------------------------------------------------------------------------*/

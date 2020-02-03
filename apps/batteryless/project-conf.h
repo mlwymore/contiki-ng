@@ -1,2 +1,2 @@
 #define LOG_CONF_LEVEL_MAIN LOG_LEVEL_NONE
-#define SENSORTAG_CC2650_REV_1_2_0            1
+#define SENSORTAG_CC2650_REV_1_2_0            0

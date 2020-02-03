@@ -50,7 +50,7 @@ AUTOSTART_PROCESSES(&example_coffee_process);
 /* Formatting is needed if the storage device is in an unknown state;
    e.g., when using Coffee on the storage device for the first time. */
 #ifndef NEED_FORMATTING
-#define NEED_FORMATTING 0
+#define NEED_FORMATTING 1
 #endif
 /*---------------------------------------------------------------------------*/
 static int

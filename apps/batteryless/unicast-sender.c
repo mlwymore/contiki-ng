@@ -37,6 +37,8 @@
 #include "net/packetbuf.h"
 #include <string.h>
 #include <stdio.h> /* For printf() */
+#include "arch/cpu/cc26x0-cc13x0/lib/cc26xxware/driverlib/gpio.h"
+
 
 /* Log configuration */
 #include "sys/log.h"
@@ -77,6 +79,7 @@ void input_callback(const void *data, uint16_t len,
 void mac_sent_callback(void * ptr, int status, int transmissions) {
   if(status == MAC_TX_OK) {
     LOG_INFO("Sent successfully.\n");
+    GPIO_clearDio(25);
   } else if(status == MAC_TX_NOACK) {
     LOG_INFO("No ACK!\n");
   } else {
@@ -103,6 +106,8 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
   //nullnet_set_input_callback(input_callback);
 
   //etimer_set(&periodic_timer, SEND_INTERVAL);
+  GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
+
 
   while(1) {
     LOG_INFO("Sending %u to ", pkt.seqno);
@@ -114,7 +119,14 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     nullnet_len = sizeof(struct data_packet);
 
     NETSTACK_NETWORK.output(&dest_addr);*/
-    
+    LOG_INFO_("GPIO read before set: %lu\n", GPIO_readDio(25));
+    // set GPIO Pin 25 or DP0 as output pin
+    GPIO_setDio(25);
+
+    int dio25=0;
+    int tries = 0;
+    while(!(dio25=GPIO_readDio(25))) {tries++;}
+    LOG_INFO_("GPIO read tries: %d\n", tries);  
     packetbuf_clear();
     packetbuf_copyfrom(&pkt, sizeof(struct data_packet));
     packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, &dest_addr);
@@ -125,6 +137,7 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     //etimer_set(&periodic_timer, SEND_INTERVAL);
     //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_CONTINUE);
+  
 
   }
 
