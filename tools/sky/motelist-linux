@@ -24,7 +24,7 @@ my %Opt = (
   usb => 0,
   method => "auto",
   kernel => "auto",
-  dev_prefix => [ "/dev/usb/tts/", "/dev/ttyUSB", "/dev/tts/USB" ],
+  dev_prefix => [ "/dev/usb/tts/", "/dev/ttyUSB", "/dev/tts/USB", "/dev/ttyS" ],
   usbserial => "sudo cat /proc/tty/driver/usbserial |",
 );
 
