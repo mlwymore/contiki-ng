@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = broadcast-sender broadcast-receiver broadcast-both unicast-sender receive-counter-flash receiver-gpio flash-rw receiver-flash
+CONTIKI_PROJECT = broadcast-sender broadcast-receiver broadcast-both unicast-sender receive-counter-flash receiver-gpio flash-rw receiver-flash do-nothing-die cca-die broadcast-die
 all: $(CONTIKI_PROJECT)
 
 CONTIKI = ../..
