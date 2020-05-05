@@ -22,8 +22,7 @@ static linkaddr_t coordinator_addr =  {{ 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0
 
 /*---------------------------------------------------------------------------*/
 PROCESS(nullnet_process, "NullNet broadcast example");
-PROCESS(gpio_process, "GPIO reset process");
-AUTOSTART_PROCESSES(&nullnet_process, &gpio_process);
+AUTOSTART_PROCESSES(&nullnet_process);
 /*---------------------------------------------------------------------------*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
@@ -63,7 +62,7 @@ PROCESS_THREAD(nullnet_process, ev, data)
 
   while(1) {       
     //   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-    LOG_INFO_("I'm Alive and doing nothing\n");
+    LOG_INFO_("I'm Alive and doing CCA\n");
     // CCA Check
     NETSTACK_RADIO.channel_clear();
     // set GPIO Pin 25 or DP0 as output pin
@@ -73,28 +72,3 @@ PROCESS_THREAD(nullnet_process, ev, data)
   }
   PROCESS_END();
 }
-
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(gpio_process, ev, data)
-{
-    PROCESS_BEGIN();
-
-    static struct etimer wait_timer;
-    etimer_set(&wait_timer, WAIT_INTERVAL);
-
-    while (1)
-    {
-        // Wait for event from the nullnet receiver
-        PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_MSG);
-
-        etimer_reset(&wait_timer);
-        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
-        // set GPIO Pin 25 or DP0 as output pin
-        GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
-        // toggle
-        GPIO_clearDio(25);
-    }
-
-    PROCESS_END();    
-}
-/*---------------------------------------------------------------------------*/

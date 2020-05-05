@@ -79,6 +79,8 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
 {
   static struct etimer periodic_timer;
   static unsigned count = 0;
+  char buffer[30] = "Hello world.";
+
 
   PROCESS_BEGIN();
 
@@ -102,7 +104,9 @@ PROCESS_THREAD(nullnet_example_process, ev, data)
     memcpy(nullnet_buf, &count, sizeof(count));
     nullnet_len = sizeof(count);
 
-    NETSTACK_NETWORK.output(NULL);
+    // NETSTACK_NETWORK.output(NULL);
+    NETSTACK_RADIO.prepare(buffer, 30);
+    NETSTACK_RADIO.transmit(30);
     // set GPIO Pin 25 or DP0 as output pin
     GPIO_setOutputEnableDio(25, GPIO_OUTPUT_ENABLE);
     // toggle
