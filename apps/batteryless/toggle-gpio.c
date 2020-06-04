@@ -10,9 +10,11 @@ PROCESS_THREAD(gpio_process, ev, data)
 {
     PROCESS_BEGIN();
 
-    // set LED 2 Pin 15 on
+    // set LED 2 Pin 15 on and DP1 on
     GPIO_setOutputEnableDio(15, GPIO_OUTPUT_ENABLE);
+    GPIO_setOutputEnableDio(24, GPIO_OUTPUT_ENABLE);
     GPIO_setDio(15);
+    GPIO_setDio(24);
 
     PROCESS_END();    
 }
